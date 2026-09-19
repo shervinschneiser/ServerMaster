@@ -1,0 +1,63 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.pyre/
+.pytype/
+
+# Node.js
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+.nx/
+*.tsbuildinfo
+
+# Rust
+target/
+Cargo.lock
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Coverage / reports
+coverage/
+coverage.xml
+
+# Docker
+docker-compose.override.yml
+
+# Local data
+*.sqlite
+*.sqlite3

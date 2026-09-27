@@ -1,4 +1,7 @@
+import asyncio
+import selectors
 from logging.config import fileConfig
+import sys
 
 from alembic import context
 from sqlalchemy import pool
@@ -61,9 +64,15 @@ async def run_migrations_online() -> None:
 
 
 def run_migrations() -> None:
-    import asyncio
-
-    asyncio.run(run_migrations_online())
+    if sys.platform == "win32":
+        asyncio.run(
+            run_migrations_online(),
+            loop_factory=lambda: asyncio.SelectorEventLoop(
+                selectors.SelectSelector()
+            ),
+        )
+    else:
+        asyncio.run(run_migrations_online())
 
 
 if context.is_offline_mode():

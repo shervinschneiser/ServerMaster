@@ -10,3 +10,17 @@ async def test_database_connection() -> None:
         result = await connection.execute(text("SELECT 1"))
 
     assert result.scalar_one() == 1
+
+
+@pytest.mark.asyncio
+async def test_servers_table_exists() -> None:
+    async with engine.connect() as connection:
+        result = await connection.execute(
+            text(
+                """
+                SELECT to_regclass('public.servers')
+                """
+            )
+        )
+
+    assert result.scalar_one() == "servers"

@@ -1,7 +1,7 @@
 import asyncio
 import selectors
-from logging.config import fileConfig
 import sys
+from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.db.base import Base
-
 
 config = context.config
 
@@ -67,9 +66,7 @@ def run_migrations() -> None:
     if sys.platform == "win32":
         asyncio.run(
             run_migrations_online(),
-            loop_factory=lambda: asyncio.SelectorEventLoop(
-                selectors.SelectSelector()
-            ),
+            loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
         )
     else:
         asyncio.run(run_migrations_online())

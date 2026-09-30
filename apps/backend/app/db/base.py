@@ -6,4 +6,4 @@ class Base(DeclarativeBase):
 
 
 # Import models for Alembic
-from app.models import *  # noqa: E402,F403
+from app.models import *

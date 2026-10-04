@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.db.session import get_db_session
 from app.models.server import Server
@@ -28,3 +29,15 @@ async def create_server(
     await session.refresh(server)
 
     return server
+
+
+@router.get(
+    "",
+    response_model=list[ServerResponse],
+)
+async def list_servers(
+    session: AsyncSession = Depends(get_db_session),
+) -> list[Server]:
+    result = await session.execute(select(Server).order_by(Server.id))
+
+    return list(result.scalars().all())

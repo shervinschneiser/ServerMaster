@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
 from app.models.server import Server
@@ -41,3 +41,22 @@ async def list_servers(
     result = await session.execute(select(Server).order_by(Server.id))
 
     return list(result.scalars().all())
+
+
+@router.get(
+    "/{server_id}",
+    response_model=ServerResponse,
+)
+async def get_server(
+    server_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> Server:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Server not found",
+        )
+
+    return server

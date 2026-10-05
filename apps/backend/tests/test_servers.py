@@ -27,3 +27,44 @@ async def test_create_server() -> None:
     assert data["hostname"] == "test-server.local"
     assert data["description"] == "Test server"
     assert isinstance(data["id"], int)
+
+
+async def test_get_server() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        create_response = await client.post(
+            "/servers",
+            json={
+                "name": "Detail Test Server",
+                "hostname": "detail-test.local",
+            },
+        )
+
+        server_id = create_response.json()["id"]
+
+        response = await client.get(f"/servers/{server_id}")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == server_id
+    assert data["name"] == "Detail Test Server"
+    assert data["hostname"] == "detail-test.local"
+
+
+async def test_get_server_not_found() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        response = await client.get("/servers/999999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Server not found"}

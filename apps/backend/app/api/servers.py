@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,3 +60,25 @@ async def get_server(
         )
 
     return server
+
+
+@router.delete(
+    "/{server_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_server(
+    server_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    await session.delete(server)
+    await session.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

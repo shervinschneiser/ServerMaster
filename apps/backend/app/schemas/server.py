@@ -1,9 +1,15 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ServerCreate(BaseModel):
-    name: str
-    hostname: str
+    name: str = Field(min_length=1, max_length=100)
+    hostname: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+
+
+class ServerUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    hostname: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
 
 

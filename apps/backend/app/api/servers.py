@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.db.session import get_db_session
 from app.models.server import Server
@@ -20,8 +21,17 @@ async def create_server(
 ) -> Server:
     server = Server(**server_data.model_dump())
     session.add(server)
-    await session.commit()
-    await session.refresh(server)
+
+    try:
+        await session.commit()
+        await session.refresh(server)
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A server with this hostname already exists",
+        ) from exc
+
     return server
 
 

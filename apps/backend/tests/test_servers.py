@@ -151,3 +151,23 @@ async def test_update_server_not_found() -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Server not found"}
+
+
+async def test_create_server_with_duplicate_hostname() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        payload = {
+            "name": "Duplicate Test Server",
+            "hostname": "duplicate-test.local",
+        }
+
+        first_response = await client.post("/servers", json=payload)
+        second_response = await client.post("/servers", json=payload)
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+    assert second_response.json() == {"detail": "A server with this hostname already exists"}

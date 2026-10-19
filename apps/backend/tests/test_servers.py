@@ -171,3 +171,61 @@ async def test_create_server_with_duplicate_hostname() -> None:
     assert first_response.status_code == 201
     assert second_response.status_code == 409
     assert second_response.json() == {"detail": "A server with this hostname already exists"}
+
+
+async def test_create_server_rejects_blank_name() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/servers",
+            json={
+                "name": "   ",
+                "hostname": "blank-name-test.local",
+            },
+        )
+
+    assert response.status_code == 422
+
+
+async def test_create_server_trims_whitespace() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/servers",
+            json={
+                "name": "  Test Server  ",
+                "hostname": "  trimmed-test.local  ",
+            },
+        )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Test Server"
+    assert data["hostname"] == "trimmed-test.local"
+
+
+async def test_create_server_rejects_long_description() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/servers",
+            json={
+                "name": "Long Description Test",
+                "hostname": "long-description-test.local",
+                "description": "x" * 2001,
+            },
+        )
+
+    assert response.status_code == 422

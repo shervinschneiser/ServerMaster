@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -37,9 +37,25 @@ async def create_server(
 
 @router.get("", response_model=list[ServerResponse])
 async def list_servers(
+    skip: int = 0,
+    limit: int = 50,
+    search: str | None = None,
     session: AsyncSession = Depends(get_db_session),
 ) -> list[Server]:
-    result = await session.scalars(select(Server).order_by(Server.id))
+    statement = select(Server).order_by(Server.id)
+
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                Server.name.ilike(search_term),
+                Server.hostname.ilike(search_term),
+            )
+        )
+
+    statement = statement.offset(skip).limit(min(limit, 100))
+
+    result = await session.scalars(statement)
     return list(result.all())
 
 

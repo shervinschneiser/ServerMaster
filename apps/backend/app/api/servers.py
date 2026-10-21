@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -37,9 +37,9 @@ async def create_server(
 
 @router.get("", response_model=list[ServerResponse])
 async def list_servers(
-    skip: int = 0,
-    limit: int = 50,
-    search: str | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    search: str | None = Query(default=None, min_length=1, max_length=255),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[Server]:
     statement = select(Server).order_by(Server.id)

@@ -6,6 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from app.db.session import get_db_session
 from app.models.server import Server
 from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
+from app.schemas.agent_token import AgentTokenIssuedResponse
+from app.services.agent_tokens import create_agent_token
 
 router = APIRouter(prefix="/servers", tags=["Servers"])
 
@@ -126,3 +128,36 @@ async def delete_server(
     await session.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{server_id}/tokens",
+    response_model=AgentTokenIssuedResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def issue_agent_token(
+    server_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> AgentTokenIssuedResponse:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    agent_token, raw_token = await create_agent_token(
+        session=session,
+        server_id=server_id,
+    )
+
+    await session.commit()
+    await session.refresh(agent_token)
+
+    return AgentTokenIssuedResponse(
+        id=agent_token.id,
+        server_id=agent_token.server_id,
+        created_at=agent_token.created_at,
+        token=raw_token,
+    )

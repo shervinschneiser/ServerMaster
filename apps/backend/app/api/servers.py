@@ -8,6 +8,7 @@ from app.models.server import Server
 from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
 from app.schemas.agent_token import AgentTokenIssuedResponse
 from app.services.agent_tokens import create_agent_token
+from app.services.agent_auth import authenticate_agent
 
 from datetime import UTC, datetime
 from app.models.agent_token import AgentToken
@@ -194,3 +195,13 @@ async def revoke_agent_token(
     if agent_token.revoked_at is None:
         agent_token.revoked_at = datetime.now(UTC)
         await session.commit()
+
+
+@router.get("/agent/verify")
+async def verify_agent_token(
+    agent_token: AgentToken = Depends(authenticate_agent),
+) -> dict[str, int | str]:
+    return {
+        "status": "authenticated",
+        "server_id": agent_token.server_id,
+    }

@@ -9,6 +9,9 @@ from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
 from app.schemas.agent_token import AgentTokenIssuedResponse
 from app.services.agent_tokens import create_agent_token
 
+from datetime import UTC, datetime
+from app.models.agent_token import AgentToken
+
 router = APIRouter(prefix="/servers", tags=["Servers"])
 
 
@@ -161,3 +164,33 @@ async def issue_agent_token(
         created_at=agent_token.created_at,
         token=raw_token,
     )
+
+
+@router.delete(
+    "/{server_id}/tokens/{token_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def revoke_agent_token(
+    server_id: int,
+    token_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    agent_token = await session.get(AgentToken, token_id)
+
+    if agent_token is None or agent_token.server_id != server_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent token not found",
+        )
+
+    if agent_token.revoked_at is None:
+        agent_token.revoked_at = datetime.now(UTC)
+        await session.commit()

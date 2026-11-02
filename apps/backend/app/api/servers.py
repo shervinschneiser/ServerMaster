@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
-from app.models.server import Server
-from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
-from app.schemas.agent_token import AgentTokenIssuedResponse
-from app.services.agent_tokens import create_agent_token
-from app.services.agent_auth import authenticate_agent
-
-from datetime import UTC, datetime
 from app.models.agent_token import AgentToken
+from app.models.server import Server
+from app.schemas.agent_token import AgentTokenIssuedResponse
+from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
+from app.services.agent_auth import authenticate_agent
+from app.services.agent_tokens import create_agent_token
 
 router = APIRouter(prefix="/servers", tags=["Servers"])
 

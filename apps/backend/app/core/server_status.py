@@ -1,0 +1,2 @@
+SERVER_STATUS_ONLINE = "online"
+SERVER_STATUS_OFFLINE = "offline"

@@ -9,6 +9,7 @@ from app.db.session import get_db_session
 from app.models.agent_token import AgentToken
 from app.models.server import Server
 from app.schemas.agent_token import AgentTokenIssuedResponse
+from app.schemas.heartbeat import HeartbeatResponse
 from app.schemas.server import ServerCreate, ServerResponse, ServerUpdate
 from app.services.agent_auth import authenticate_agent
 from app.services.agent_tokens import create_agent_token
@@ -63,6 +64,47 @@ async def list_servers(
 
     result = await session.scalars(statement)
     return list(result.all())
+
+
+# Keep this route before /{server_id}
+@router.get("/agent/verify")
+async def verify_agent_token(
+    agent_token: AgentToken = Depends(authenticate_agent),
+) -> dict[str, int | str]:
+    return {
+        "status": "authenticated",
+        "server_id": agent_token.server_id,
+    }
+
+
+@router.post(
+    "/agent/heartbeat",
+    response_model=HeartbeatResponse,
+)
+async def agent_heartbeat(
+    agent_token: AgentToken = Depends(authenticate_agent),
+    session: AsyncSession = Depends(get_db_session),
+) -> HeartbeatResponse:
+    server = await session.get(Server, agent_token.server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    now = datetime.now(UTC)
+
+    server.is_online = True
+    server.last_seen_at = now
+
+    await session.commit()
+
+    return HeartbeatResponse(
+        status="ok",
+        server_id=server.id,
+        last_seen_at=now,
+    )
 
 
 @router.get("/{server_id}", response_model=ServerResponse)
@@ -195,13 +237,3 @@ async def revoke_agent_token(
     if agent_token.revoked_at is None:
         agent_token.revoked_at = datetime.now(UTC)
         await session.commit()
-
-
-@router.get("/agent/verify")
-async def verify_agent_token(
-    agent_token: AgentToken = Depends(authenticate_agent),
-) -> dict[str, int | str]:
-    return {
-        "status": "authenticated",
-        "server_id": agent_token.server_id,
-    }

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from datetime import datetime
 
 
 class ServerCreate(BaseModel):
@@ -39,3 +40,5 @@ class ServerResponse(BaseModel):
     name: str
     hostname: str
     description: str | None
+    is_online: bool
+    last_seen_at: datetime | None

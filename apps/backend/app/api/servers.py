@@ -49,9 +49,19 @@ async def list_servers(
     search: str | None = Query(default=None, min_length=1, max_length=255),
     is_online: bool | None = Query(default=None),
     hostname: str | None = Query(default=None, min_length=1, max_length=255),
+    seen_after: datetime | None = Query(default=None),
+    seen_before: datetime | None = Query(default=None),
+    sort_by: str = Query(
+        default="id",
+        pattern="^(id|name|created_at|last_seen_at)$",
+    ),
+    order: str = Query(
+        default="asc",
+        pattern="^(asc|desc)$",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[Server]:
-    statement = select(Server).order_by(Server.id)
+    statement = select(Server)
 
     if search and search.strip():
         search_term = f"%{search.strip()}%"
@@ -68,7 +78,32 @@ async def list_servers(
     if hostname:
         statement = statement.where(Server.hostname == hostname.strip())
 
-    statement = statement.offset(skip).limit(min(limit, 100))
+    if seen_after is not None:
+        statement = statement.where(Server.last_seen_at >= seen_after)
+
+    if seen_before is not None:
+        statement = statement.where(Server.last_seen_at <= seen_before)
+
+    sort_columns = {
+        "id": Server.id,
+        "name": Server.name,
+        "created_at": Server.created_at,
+        "last_seen_at": Server.last_seen_at,
+    }
+    sort_column = sort_columns[sort_by]
+
+    if order == "desc":
+        statement = statement.order_by(
+            sort_column.desc().nulls_last(),
+            Server.id.desc(),
+        )
+    else:
+        statement = statement.order_by(
+            sort_column.asc().nulls_last(),
+            Server.id.asc(),
+        )
+
+    statement = statement.offset(skip).limit(limit)
 
     result = await session.scalars(statement)
     return list(result.all())

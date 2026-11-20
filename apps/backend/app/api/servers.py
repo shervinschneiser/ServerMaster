@@ -192,8 +192,16 @@ async def update_server(
     for field, value in updates.items():
         setattr(server, field, value)
 
-    await session.commit()
-    await session.refresh(server)
+    try:
+        await session.commit()
+        await session.refresh(server)
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A server with this hostname already exists",
+        ) from exc
+
     return server
 
 

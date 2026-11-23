@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +40,25 @@ async def create_server(
         ) from exc
 
     return server
+
+
+@router.get("/stats")
+async def get_server_stats(
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    statement = select(
+        func.count(Server.id),
+        func.count(Server.id).filter(Server.is_online.is_(True)),
+    )
+
+    result = await session.execute(statement)
+    total_count, online_count = result.one()
+
+    return {
+        "total": total_count,
+        "online": online_count,
+        "offline": total_count - online_count,
+    }
 
 
 @router.get("", response_model=list[ServerResponse])

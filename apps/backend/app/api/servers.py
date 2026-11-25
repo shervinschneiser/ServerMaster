@@ -246,6 +246,39 @@ async def delete_server(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get("/{server_id}/tokens")
+async def list_agent_tokens(
+    server_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[dict[str, int | datetime | None]]:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    statement = (
+        select(AgentToken)
+        .where(AgentToken.server_id == server_id)
+        .order_by(AgentToken.created_at.desc())
+    )
+
+    result = await session.scalars(statement)
+    tokens = result.all()
+
+    return [
+        {
+            "id": token.id,
+            "server_id": token.server_id,
+            "created_at": token.created_at,
+            "revoked_at": token.revoked_at,
+        }
+        for token in tokens
+    ]
+
+
 @router.post(
     "/{server_id}/tokens",
     response_model=AgentTokenIssuedResponse,

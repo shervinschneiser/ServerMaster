@@ -19,15 +19,6 @@ router = APIRouter(prefix="/servers", tags=["Servers"])
 HEARTBEAT_TIMEOUT = timedelta(seconds=120)
 
 
-def get_online_condition(now: datetime):
-    cutoff = now - HEARTBEAT_TIMEOUT
-
-    return (
-        Server.is_online.is_(True),
-        Server.last_seen_at >= cutoff,
-    )
-
-
 def is_server_online(server: Server, now: datetime) -> bool:
     if not server.is_online or server.last_seen_at is None:
         return False
@@ -64,8 +55,7 @@ async def create_server(
 async def get_server_stats(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, int]:
-    now = datetime.now(UTC)
-    cutoff = now - HEARTBEAT_TIMEOUT
+    cutoff = datetime.now(UTC) - HEARTBEAT_TIMEOUT
 
     online_condition = (
         Server.is_online.is_(True)
@@ -150,6 +140,7 @@ async def list_servers(
         "created_at": Server.created_at,
         "last_seen_at": Server.last_seen_at,
     }
+
     sort_column = sort_columns[sort_by]
 
     if order == "desc":
@@ -213,6 +204,43 @@ async def agent_heartbeat(
         server_id=server.id,
         last_seen_at=now,
     )
+
+
+@router.get("/{server_id}/health")
+async def get_server_health(
+    server_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, int | str | bool | None]:
+    server = await session.get(Server, server_id)
+
+    if server is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server not found",
+        )
+
+    now = datetime.now(UTC)
+    online = is_server_online(server, now)
+
+    seconds_since_heartbeat = None
+
+    if server.last_seen_at is not None:
+        seconds_since_heartbeat = max(
+            0,
+            int((now - server.last_seen_at).total_seconds()),
+        )
+
+    return {
+        "server_id": server.id,
+        "hostname": server.hostname,
+        "status": "online" if online else "offline",
+        "is_online": online,
+        "last_seen_at": (
+            server.last_seen_at.isoformat() if server.last_seen_at is not None else None
+        ),
+        "seconds_since_heartbeat": seconds_since_heartbeat,
+        "heartbeat_timeout_seconds": int(HEARTBEAT_TIMEOUT.total_seconds()),
+    }
 
 
 @router.get("/{server_id}", response_model=ServerResponse)

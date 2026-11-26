@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
@@ -15,6 +15,24 @@ from app.services.agent_auth import authenticate_agent
 from app.services.agent_tokens import create_agent_token
 
 router = APIRouter(prefix="/servers", tags=["Servers"])
+
+HEARTBEAT_TIMEOUT = timedelta(seconds=120)
+
+
+def get_online_condition(now: datetime):
+    cutoff = now - HEARTBEAT_TIMEOUT
+
+    return (
+        Server.is_online.is_(True),
+        Server.last_seen_at >= cutoff,
+    )
+
+
+def is_server_online(server: Server, now: datetime) -> bool:
+    if not server.is_online or server.last_seen_at is None:
+        return False
+
+    return server.last_seen_at >= now - HEARTBEAT_TIMEOUT
 
 
 @router.post(
@@ -46,9 +64,18 @@ async def create_server(
 async def get_server_stats(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, int]:
+    now = datetime.now(UTC)
+    cutoff = now - HEARTBEAT_TIMEOUT
+
+    online_condition = (
+        Server.is_online.is_(True)
+        & Server.last_seen_at.is_not(None)
+        & (Server.last_seen_at >= cutoff)
+    )
+
     statement = select(
         func.count(Server.id),
-        func.count(Server.id).filter(Server.is_online.is_(True)),
+        func.count(Server.id).filter(online_condition),
     )
 
     result = await session.execute(statement)
@@ -80,6 +107,9 @@ async def list_servers(
     ),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[Server]:
+    now = datetime.now(UTC)
+    cutoff = now - HEARTBEAT_TIMEOUT
+
     statement = select(Server)
 
     if search and search.strip():
@@ -91,8 +121,19 @@ async def list_servers(
             )
         )
 
-    if is_online is not None:
-        statement = statement.where(Server.is_online == is_online)
+    if is_online is True:
+        statement = statement.where(
+            Server.is_online.is_(True),
+            Server.last_seen_at >= cutoff,
+        )
+    elif is_online is False:
+        statement = statement.where(
+            or_(
+                Server.is_online.is_(False),
+                Server.last_seen_at.is_(None),
+                Server.last_seen_at < cutoff,
+            )
+        )
 
     if hostname:
         statement = statement.where(Server.hostname == hostname.strip())
@@ -125,7 +166,12 @@ async def list_servers(
     statement = statement.offset(skip).limit(limit)
 
     result = await session.scalars(statement)
-    return list(result.all())
+    servers = list(result.all())
+
+    for server in servers:
+        server.is_online = is_server_online(server, now)
+
+    return servers
 
 
 # Keep this route before /{server_id}
@@ -182,6 +228,8 @@ async def get_server(
             detail="Server not found",
         )
 
+    server.is_online = is_server_online(server, datetime.now(UTC))
+
     return server
 
 
@@ -220,6 +268,8 @@ async def update_server(
             status_code=status.HTTP_409_CONFLICT,
             detail="A server with this hostname already exists",
         ) from exc
+
+    server.is_online = is_server_online(server, datetime.now(UTC))
 
     return server
 

@@ -6,6 +6,7 @@ from app.api.servers import router as servers_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.api.health import router as health_router
+from app.middleware.request_id import RequestIDMiddleware
 
 configure_logging()
 
@@ -19,6 +20,8 @@ app = FastAPI(
 
 app.include_router(servers_router)
 app.include_router(health_router)
+app.add_middleware(RequestIDMiddleware)
+
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:

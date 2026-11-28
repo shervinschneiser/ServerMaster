@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.api.health import router as health_router
 from app.middleware.request_id import RequestIDMiddleware
+from app.core.exception_handlers import register_exception_handlers
 
 configure_logging()
 
@@ -17,6 +18,7 @@ app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
 )
+register_exception_handlers(app)
 
 app.include_router(servers_router)
 app.include_router(health_router)
